@@ -45,6 +45,15 @@ public:
 		std::shared_ptr<libsinsp::filter::ast::expr> condition) = 0;
 
 	/*!
+	        \brief an alternate version of add() where the filter is already compiled
+		from the ast. Allows capturing compile errors.
+	*/
+	virtual void add(
+		const falco_rule& rule,
+		std::shared_ptr<gen_event_filter> filter,
+		std::shared_ptr<libsinsp::filter::ast::expr> condition) = 0;
+
+	/*!
 		\brief Erases the internal state. All rules are disabled in each
 		ruleset, and all the rules defined with add() are removed.
 	*/
