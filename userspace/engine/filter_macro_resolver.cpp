@@ -28,12 +28,13 @@ bool filter_macro_resolver::run(libsinsp::filter::ast::expr*& filter)
 	v.m_resolved_macros = &m_resolved_macros;
 	v.m_macros = &m_macros;
 	v.m_last_node_changed = false;
-	v.m_last_node = filter;
+	v.m_last_node = NULL;
 	filter->accept(&v);
 	if (v.m_last_node_changed)
 	{
 		delete filter;
-		filter = v.m_last_node;
+		filter = v.m_last_node.release();
+		v.m_last_node = NULL;
 	}
 	return !m_resolved_macros.empty();
 }
@@ -47,11 +48,12 @@ bool filter_macro_resolver::run(std::shared_ptr<libsinsp::filter::ast::expr>& fi
 	v.m_resolved_macros = &m_resolved_macros;
 	v.m_macros = &m_macros;
 	v.m_last_node_changed = false;
-	v.m_last_node = filter.get();
+	v.m_last_node = NULL;
 	filter->accept(&v);
 	if (v.m_last_node_changed)
 	{
-		filter.reset(v.m_last_node);
+		filter.reset(v.m_last_node.release());
+		v.m_last_node = NULL;
 	}
 	return !m_resolved_macros.empty();
 }
@@ -80,11 +82,11 @@ void filter_macro_resolver::visitor::visit(ast::and_expr* e)
 		e->children[i]->accept(this);
 		if (m_last_node_changed)
 		{
-			delete e->children[i];
-			e->children[i] = m_last_node;
+			e->children[i].reset(m_last_node.release());
+			m_last_node = NULL;
 		}
 	}
-	m_last_node = e;
+	m_last_node = NULL;
 	m_last_node_changed = false;
 }
 
@@ -95,11 +97,11 @@ void filter_macro_resolver::visitor::visit(ast::or_expr* e)
 		e->children[i]->accept(this);
 		if (m_last_node_changed)
 		{
-			delete e->children[i];
-			e->children[i] = m_last_node;
+			e->children[i].reset(m_last_node.release());
+			m_last_node = NULL;
 		}
 	}
-	m_last_node = e;
+	m_last_node = NULL;
 	m_last_node_changed = false;
 }
 
@@ -108,16 +110,16 @@ void filter_macro_resolver::visitor::visit(ast::not_expr* e)
 	e->child->accept(this);
 	if (m_last_node_changed)
 	{
-		delete e->child;
-		e->child = m_last_node;
+		e->child.reset(m_last_node.release());
+		m_last_node = NULL;
 	}
-	m_last_node = e;
+	m_last_node = NULL;
 	m_last_node_changed = false;
 }
 
 void filter_macro_resolver::visitor::visit(ast::list_expr* e)
 {
-	m_last_node = e;
+	m_last_node = NULL;
 	m_last_node_changed = false;
 }
 
@@ -125,13 +127,13 @@ void filter_macro_resolver::visitor::visit(ast::binary_check_expr* e)
 {
 	// avoid exploring checks, so that we can be sure that each
 	// value_expr* node visited is a macro identifier
-	m_last_node = e;
+	m_last_node = NULL;
 	m_last_node_changed = false;
 }
 
 void filter_macro_resolver::visitor::visit(ast::unary_check_expr* e)
 {
-	m_last_node = e;
+	m_last_node = NULL;
 	m_last_node_changed = false;
 }
 
@@ -143,14 +145,15 @@ void filter_macro_resolver::visitor::visit(ast::value_expr* e)
 	auto macro = m_macros->find(e->value);
 	if (macro != m_macros->end() && macro->second) // skip null-ptr macros
 	{
-		ast::expr* new_node = ast::clone(macro->second.get());
-		new_node->accept(this); // this sets m_last_node
+		std::unique_ptr<ast::expr> new_node = ast::clone(macro->second.get());
+		new_node->accept(this);
+		m_last_node.reset(new_node.release());
 		m_last_node_changed = true;
 		m_resolved_macros->insert(e->value);
 	}
 	else
 	{
-		m_last_node = e;
+		m_last_node = NULL;
 		m_last_node_changed = false;
 		m_unknown_macros->insert(e->value);
 	}

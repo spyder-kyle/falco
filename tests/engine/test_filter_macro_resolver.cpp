@@ -100,14 +100,16 @@ TEST_CASE("Should resolve macros on a filter AST", "[rule_loader]")
 		shared_ptr<expr> b_macro(
 			new unary_check_expr("another.field", "", "exists"));
 
-		expr* filter = new or_expr({
-			new value_expr(a_macro_name),
-			new value_expr(b_macro_name),
-		});
-		expr* expected_filter = new or_expr({
-			clone(a_macro.get()),
-			clone(b_macro.get()),
-		});
+		std::vector<std::unique_ptr<expr>> or_children;
+		or_children.push_back(value_expr::create(a_macro_name));
+		or_children.push_back(value_expr::create(b_macro_name));
+		expr* filter = new or_expr(or_children);
+
+		or_children.clear();
+		or_children.push_back(clone(a_macro.get()));
+		or_children.push_back(clone(b_macro.get()));
+
+		expr* expected_filter = new or_expr(or_children);
 
 		filter_macro_resolver resolver;
 		resolver.set_macro(a_macro_name, a_macro);
@@ -138,18 +140,20 @@ TEST_CASE("Should resolve macros on a filter AST", "[rule_loader]")
 		string a_macro_name = macro_name + "_1";
 		string b_macro_name = macro_name + "_2";
 
-		shared_ptr<expr> a_macro(new and_expr({
-			new unary_check_expr("one.field", "", "exists"),
-			new value_expr(b_macro_name),
-		}));
+		std::vector<std::unique_ptr<expr>> and_children;
+		and_children.push_back(unary_check_expr::create("one.field", "", "exists"));
+		and_children.push_back(value_expr::create(b_macro_name));
+
+		shared_ptr<expr> a_macro(new and_expr(and_children));
+
 		shared_ptr<expr> b_macro(
 			new unary_check_expr("another.field", "", "exists"));
 
 		expr* filter = new value_expr(a_macro_name);
-		expr* expected_filter = new and_expr({
-			new unary_check_expr("one.field", "", "exists"),
-			new unary_check_expr("another.field", "", "exists"),
-		});
+		and_children.clear();
+		and_children.push_back(unary_check_expr::create("one.field", "", "exists"));
+		and_children.push_back(unary_check_expr::create("another.field", "", "exists"));
+		expr* expected_filter = new and_expr(and_children);
 
 		filter_macro_resolver resolver;
 		resolver.set_macro(a_macro_name, a_macro);
@@ -182,12 +186,10 @@ TEST_CASE("Should find unknown macros", "[rule_loader]")
 
 	SECTION("in the general case")
 	{
-		expr* filter = new and_expr({
-			new unary_check_expr("evt.name", "", "exists"), 
-			new not_expr(
-				new value_expr(macro_name)
-			),
-		});
+		std::vector<std::unique_ptr<expr>> and_children;
+		and_children.push_back(unary_check_expr::create("evt.name", "", "exists"));
+		and_children.push_back(value_expr::create(macro_name));
+		expr* filter = new and_expr(and_children);
 
 		filter_macro_resolver resolver;
 		REQUIRE(resolver.run(filter) == false);
@@ -203,13 +205,13 @@ TEST_CASE("Should find unknown macros", "[rule_loader]")
 		string a_macro_name = macro_name + "_1";
 		string b_macro_name = macro_name + "_2";
 
-		shared_ptr<expr> a_macro(new and_expr({
-			new unary_check_expr("one.field", "", "exists"),
-			new value_expr(b_macro_name),
-		}));
+		std::vector<std::unique_ptr<expr>> and_children;
+		and_children.push_back(unary_check_expr::create("one.field", "", "exists"));
+		and_children.push_back(value_expr::create(b_macro_name));
+		shared_ptr<expr> a_macro(new and_expr(and_children));
 
 		expr* filter = new value_expr(a_macro_name);
-		expr* expected_filter = clone(a_macro.get());
+		std::unique_ptr<expr> expected_filter = clone(a_macro.get());
 
 		filter_macro_resolver resolver;
 		resolver.set_macro(a_macro_name, a_macro);
@@ -220,10 +222,9 @@ TEST_CASE("Should find unknown macros", "[rule_loader]")
 		REQUIRE(*resolver.get_resolved_macros().begin() == a_macro_name);
 		REQUIRE(resolver.get_unknown_macros().size() == 1);
 		REQUIRE(*resolver.get_unknown_macros().begin() == b_macro_name);
-		REQUIRE(filter->is_equal(expected_filter));
+		REQUIRE(filter->is_equal(expected_filter.get()));
 
 		delete filter;
-		delete expected_filter;
 	}
 }
 

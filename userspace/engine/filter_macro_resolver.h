@@ -82,9 +82,9 @@ class filter_macro_resolver
 		struct visitor : public libsinsp::filter::ast::expr_visitor
 		{
 			bool m_last_node_changed;
-			libsinsp::filter::ast::expr* m_last_node;
 			std::set<std::string>* m_unknown_macros;
 			std::set<std::string>* m_resolved_macros;
+			std::unique_ptr<libsinsp::filter::ast::expr> m_last_node;
 			macro_defs* m_macros;
 
 			void visit(libsinsp::filter::ast::and_expr* e) override;
