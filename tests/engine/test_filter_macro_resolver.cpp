@@ -29,16 +29,15 @@ TEST_CASE("Should resolve macros on a filter AST", "[rule_loader]")
 		shared_ptr<expr> macro(
 			new unary_check_expr("test.field", "", "exists"));
 
-		expr* filter = new and_expr({
-			new unary_check_expr("evt.name", "", "exists"), 
-			new not_expr(
-				new value_expr(macro_name)
-			),
-		});
-		expr* expected_filter = new and_expr({
-			new unary_check_expr("evt.name", "", "exists"), 
-			new not_expr(clone(macro.get())),
-		});
+		std::vector<std::unique_ptr<expr>> and_children;
+		and_children.push_back(unary_check_expr::create("evt.name", "", "exists"));
+		and_children.push_back(not_expr::create(value_expr::create(macro_name)));
+		expr* filter = new and_expr(and_children);
+
+		and_children.clear();
+		and_children.push_back(unary_check_expr::create("evt.name", "", "exists"));;
+		and_children.push_back(not_expr::create(clone(macro.get())));
+		expr* expected_filter = new and_expr(and_children);
 
 		filter_macro_resolver resolver;
 		resolver.set_macro(macro_name, macro);
@@ -46,7 +45,7 @@ TEST_CASE("Should resolve macros on a filter AST", "[rule_loader]")
 		// first run
 		REQUIRE(resolver.run(filter) == true);
 		REQUIRE(resolver.get_resolved_macros().size() == 1);
-		REQUIRE(*resolver.get_resolved_macros().begin() == macro_name);
+		REQUIRE(resolver.get_resolved_macros().begin()->first == macro_name);
 		REQUIRE(resolver.get_unknown_macros().empty());
 		REQUIRE(filter->is_equal(expected_filter));
 
@@ -75,7 +74,7 @@ TEST_CASE("Should resolve macros on a filter AST", "[rule_loader]")
 		REQUIRE(resolver.run(filter) == true);
 		REQUIRE(filter != old_filter_ptr);
 		REQUIRE(resolver.get_resolved_macros().size() == 1);
-		REQUIRE(*resolver.get_resolved_macros().begin() == macro_name);
+		REQUIRE(resolver.get_resolved_macros().begin()->first == macro_name);
 		REQUIRE(resolver.get_unknown_macros().empty());
 		REQUIRE(filter->is_equal(macro.get()));
 
@@ -194,7 +193,7 @@ TEST_CASE("Should find unknown macros", "[rule_loader]")
 		filter_macro_resolver resolver;
 		REQUIRE(resolver.run(filter) == false);
 		REQUIRE(resolver.get_unknown_macros().size() == 1);
-		REQUIRE(*resolver.get_unknown_macros().begin() == macro_name);
+		REQUIRE(resolver.get_unknown_macros().begin()->first == macro_name);
 		REQUIRE(resolver.get_resolved_macros().empty());
 
 		delete filter;
@@ -219,9 +218,9 @@ TEST_CASE("Should find unknown macros", "[rule_loader]")
 		// first run
 		REQUIRE(resolver.run(filter) == true);
 		REQUIRE(resolver.get_resolved_macros().size() == 1);
-		REQUIRE(*resolver.get_resolved_macros().begin() == a_macro_name);
+		REQUIRE(resolver.get_resolved_macros().begin()->first == a_macro_name);
 		REQUIRE(resolver.get_unknown_macros().size() == 1);
-		REQUIRE(*resolver.get_unknown_macros().begin() == b_macro_name);
+		REQUIRE(resolver.get_unknown_macros().begin()->first == b_macro_name);
 		REQUIRE(filter->is_equal(expected_filter.get()));
 
 		delete filter;
@@ -239,7 +238,7 @@ TEST_CASE("Should undefine macro", "[rule_loader]")
 	resolver.set_macro(macro_name, macro);
 	REQUIRE(resolver.run(a_filter) == true);
 	REQUIRE(resolver.get_resolved_macros().size() == 1);
-	REQUIRE(*resolver.get_resolved_macros().begin() == macro_name);
+	REQUIRE(resolver.get_resolved_macros().begin()->first == macro_name);
 	REQUIRE(resolver.get_unknown_macros().empty());
 	REQUIRE(a_filter->is_equal(macro.get()));
 
@@ -247,7 +246,7 @@ TEST_CASE("Should undefine macro", "[rule_loader]")
 	REQUIRE(resolver.run(b_filter) == false);
 	REQUIRE(resolver.get_resolved_macros().empty());
 	REQUIRE(resolver.get_unknown_macros().size() == 1);
-	REQUIRE(*resolver.get_unknown_macros().begin() == macro_name);
+	REQUIRE(resolver.get_unknown_macros().begin()->first == macro_name);
 
 	delete a_filter;
 	delete b_filter;
@@ -265,7 +264,7 @@ TEST_CASE("Should clone macro AST", "[rule_loader]")
 	resolver.set_macro(macro_name, macro);
 	REQUIRE(resolver.run(filter) == true);
 	REQUIRE(resolver.get_resolved_macros().size() == 1);
-	REQUIRE(*resolver.get_resolved_macros().begin() == macro_name);
+	REQUIRE(resolver.get_resolved_macros().begin()->first == macro_name);
 	REQUIRE(resolver.get_unknown_macros().empty());
 	REQUIRE(filter->is_equal(macro.get()));
 

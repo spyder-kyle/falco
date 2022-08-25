@@ -65,12 +65,12 @@ void filter_macro_resolver::set_macro(
 	m_macros[name] = macro;
 }
 
-const set<string>& filter_macro_resolver::get_unknown_macros() const
+const filter_macro_resolver::macro_info_map& filter_macro_resolver::get_unknown_macros() const
 {
 	return m_unknown_macros;
 }
 
-const set<string>& filter_macro_resolver::get_resolved_macros() const
+const filter_macro_resolver::macro_info_map& filter_macro_resolver::get_resolved_macros() const
 {
 	return m_resolved_macros;
 }
@@ -149,12 +149,12 @@ void filter_macro_resolver::visitor::visit(ast::value_expr* e)
 		new_node->accept(this);
 		m_last_node.reset(new_node.release());
 		m_last_node_changed = true;
-		m_resolved_macros->insert(e->value);
+		(*m_resolved_macros)[e->value] = e->get_pos();
 	}
 	else
 	{
 		m_last_node = NULL;
 		m_last_node_changed = false;
-		m_unknown_macros->insert(e->value);
+		(*m_unknown_macros)[e->value] = e->get_pos();
 	}
 }

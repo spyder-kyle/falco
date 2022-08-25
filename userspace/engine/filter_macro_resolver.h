@@ -59,11 +59,16 @@ class filter_macro_resolver
 			std::shared_ptr<libsinsp::filter::ast::expr> macro);
 
 		/*!
+		        \brief used in get_{resolved,unknown}_macros
+		*/
+		typedef std::map<std::string,libsinsp::filter::ast::pos_info> macro_info_map;
+
+		/*!
 			\brief Returns a set containing the names of all the macros
 			substituted during the last invocation of run(). Should be
 			non-empty if the last invocation of run() returned true.
 		*/
-		const std::set<std::string>& get_resolved_macros() const;
+		const macro_info_map& get_resolved_macros() const;
 
 		/*!
 			\brief Returns a set containing the names of all the macros
@@ -71,8 +76,8 @@ class filter_macro_resolver
 			A macro remains unresolved if it is found inside the processed
 			filter but it was not defined with set_macro();
 		*/
-		const std::set<std::string>& get_unknown_macros() const;
-		
+		const macro_info_map& get_unknown_macros() const;
+
 	private:
 		typedef std::map<
 			std::string,
@@ -82,9 +87,9 @@ class filter_macro_resolver
 		struct visitor : public libsinsp::filter::ast::expr_visitor
 		{
 			bool m_last_node_changed;
-			std::set<std::string>* m_unknown_macros;
-			std::set<std::string>* m_resolved_macros;
 			std::unique_ptr<libsinsp::filter::ast::expr> m_last_node;
+			macro_info_map* m_unknown_macros;
+			macro_info_map* m_resolved_macros;
 			macro_defs* m_macros;
 
 			void visit(libsinsp::filter::ast::and_expr* e) override;
@@ -96,7 +101,7 @@ class filter_macro_resolver
 			void visit(libsinsp::filter::ast::binary_check_expr* e) override;
 		};
 
-		std::set<std::string> m_unknown_macros;
-		std::set<std::string> m_resolved_macros;
+		macro_info_map m_unknown_macros;
+		macro_info_map m_resolved_macros;
 		macro_defs m_macros;
 };
